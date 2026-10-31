@@ -3,6 +3,23 @@
 This fork keeps the original's version numbers and adds a fourth digit or a new minor. The
 original's history (up to 1.6.14) is in the git log below the fork's first commit.
 
+## 1.8.4
+
+Type and send links from the phone.
+
+- The phone's page has a new tab, Send. Type on the phone and the letters arrive in the text
+  field that has the focus on the TV, in any app (YouTube and Netflix searches, passwords,
+  network names), with a clear button. Accented letters arrive without the accent: Android's
+  key map has none. There is no Enter: in the on-screen keyboards of YouTube and others it
+  would press the highlighted letter instead. To search or confirm, press OK.
+- The same tab opens a web address on the TV: a YouTube link opens in the YouTube app, any
+  other in the browser (or the system asks which app, if several want it). Only http and
+  https addresses are accepted.
+- Salotto's own Search page takes letters, digits, Space and Delete from a phone or a USB
+  keyboard as well as from its on-screen keys.
+- The key helper is started again if the debugging link was not up yet on the first try. It
+  used to stay off for two minutes, so the first keys and typed text were lost.
+
 ## 1.8.3
 
 Smoother dark backgrounds, and no black borders left behind by Overscan.

@@ -44,13 +44,20 @@ The app has exactly three network behaviours, and no others:
   it. Wrong codes are counted per address (five a minute) and overall. A request whose Host or
   Origin is not the TV's own address is refused. What a signed-in phone can do is a fixed
   list: press the keys in `RemoteKeys` (arrows, OK, Back, Home, Menu, play, rewind, forward,
-  volume), change what `RemoteSettings` lists and search and open apps and channels. It
-  cannot run commands. The keys go through the on-device ADB link, as a real remote's press
-  would: the link starts a small helper (`KeyDaemon`, run from this APK with the shell's
+  volume), type text into the field that has the focus, open a web address,
+  change what `RemoteSettings` lists and search and open apps and channels. It cannot run
+  commands. The keys and the typing go through the on-device ADB link, as a real remote's
+  press would: the link starts a small helper (`KeyDaemon`, run from this APK with the shell's
   privileges, as `input` is) that listens on 127.0.0.1 only, accepts only lines that begin
   with a secret made fresh each time it starts, presses only the fourteen codes of
-  `RemoteKeys`, and exits after 75 seconds without a line or when the switch is turned off.
-  Without it each press is an `input keyevent` run over the link, about 0.7 s slower. It is plain HTTP, so someone who can read the traffic on your Wi-Fi can read a code
+  `RemoteKeys`, types at most 120 characters a line through the virtual keyboard's key map
+  (and deletes that many characters, with Delete, only as part of typing),
+  and exits after 75 seconds without a line or when the switch is turned off. Without it each
+  press is an `input keyevent` run over the link, about 0.7 s slower. A web address goes
+  through `RemoteLink`: only `http` and `https`, at most 1500 characters, and every character
+  outside the set a URL is made of (the single quote included) is percent-encoded before it
+  is placed between quotes in an `am start` command, so it cannot mean anything to the shell.
+  It is plain HTTP, so someone who can read the traffic on your Wi-Fi can read a code
   while it is valid, and a token, and then act as that phone until the session ends. Turning
   the switch off closes the port at once; *Sign out all phones* ends every session. It sends
   nothing out: it only answers.

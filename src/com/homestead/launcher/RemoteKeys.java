@@ -22,10 +22,13 @@ import android.util.Log;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.URLEncoder;
 import java.security.SecureRandom;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -62,6 +65,10 @@ final class RemoteKeys {
     private static final long STUCK_MS = 8000L;
     private static boolean busy;
     private static long busySince;
+    /** Typing lines that arrived while the helper was starting, and when the last one did. */
+    private static final ArrayList<String> PENDING = new ArrayList<String>();
+    private static final long PENDING_MS = 20000L;
+    private static long pendingAt;
 
     // ---- the helper process
     private static final SecureRandom RNG = new SecureRandom();
@@ -74,6 +81,8 @@ final class RemoteKeys {
     });
     /** After a failed start, the earliest time to try again. */
     private static final long RETRY_MS = 120000L;
+    /** After the link itself failed (no command ran), the earliest time to try again. */
+    private static final long SOON_MS = 8000L;
     private static volatile boolean helperUp;
     private static Context ctx;
     private static volatile String helperSecret = "";
@@ -115,6 +124,43 @@ final class RemoteKeys {
     }
 
     /**
+     * Types text into whatever field has the focus on the TV, after deleting {@code del}
+     * characters before it. Only the helper can do this quickly and in order, so lines wait
+     * here (for a few seconds at most, so that old text never lands in some other app) while
+     * it starts. {@link #OK}, {@link #UNKNOWN} for something that is not text, or
+     * {@link #NEEDS_LINK}.
+     */
+    static String type(Context c, String text, int del) {
+        if (text.length() > KeyDaemon.TEXT_MAX || del < 0 || del > KeyDaemon.TEXT_MAX
+                || (text.length() == 0 && del == 0)) return UNKNOWN;
+        for (int i = 0; i < text.length(); i++) {
+            if (Character.isISOControl(text.charAt(i))) return UNKNOWN;
+        }
+        ctx = c.getApplicationContext();
+        if (!helperUp && !AdbBridge.canRun(c)) return NEEDS_LINK;
+        String enc;
+        try { enc = URLEncoder.encode(text, "UTF-8"); } catch (UnsupportedEncodingException e) { return UNKNOWN; }
+        // Only the sizes are logged, never the text: it may be a password.
+        Log.i(TAG, "remote keys: type " + text.length() + " chars, delete " + del
+                + (helperUp ? ", helper up" : ", waiting for the helper"));
+        if (helperUp) {
+            sendTyping(del, enc);
+            return OK;
+        }
+        if (SystemClock.elapsedRealtime() - pendingAt > PENDING_MS) PENDING.clear();
+        pendingAt = SystemClock.elapsedRealtime();
+        if (del > 0) PENDING.add("del " + del);
+        if (enc.length() > 0) PENDING.add("type " + enc);
+        warm(c);
+        return OK;
+    }
+
+    private static void sendTyping(int del, String enc) {
+        if (del > 0) toHelper("del " + del, -1);
+        if (enc.length() > 0) toHelper("type " + enc, -1);
+    }
+
+    /**
      * Brings the link and the helper up ahead of the first press, and keeps them up while the
      * phone's remote page is open (it asks every 20 s; the helper exits after 75 s without a
      * line and the link after 25 s without a command).
@@ -139,7 +185,7 @@ final class RemoteKeys {
     /** The phone remote was switched off: nothing of this should stay running. */
     static void stop() {
         MAIN.post(new Runnable() {
-            public void run() { QUEUE.clear(); }
+            public void run() { QUEUE.clear(); PENDING.clear(); }
         });
         if (helperUp) toHelper("quit", -1);
     }
@@ -199,10 +245,21 @@ final class RemoteKeys {
                 + " </dev/null >/dev/null 2>&1 & sleep 0.5";
         busy = true;
         busySince = SystemClock.elapsedRealtime();
-        AdbBridge.run(cmd, new AdbBridge.Callback() {
+        // The link is torn down after 25 s idle and the first command after that often finds it
+        // still coming up (the log of a Stick showed exactly this, and the helper then stayed off
+        // for two minutes): so it is tried again, as other first commands are.
+        AdbBridge.runRetry(new String[]{ cmd }, new AdbBridge.Callback() {
             public void onDone(boolean ok, String out) {
                 busy = false;
                 Log.i(TAG, "remote keys: helper command ok=" + ok + " out=" + out.trim());
+                if (!AdbBridge.ran(out)) {
+                    // The link never came up: nothing was started, so there is nothing to connect
+                    // to. Try again soon rather than after the long pause.
+                    starting = false;
+                    noHelperUntil = SystemClock.elapsedRealtime() + SOON_MS;
+                    if (!QUEUE.isEmpty()) pump(c);
+                    return;
+                }
                 IO.execute(new Runnable() {
                     public void run() { connect(port, secret); }
                 });
@@ -253,9 +310,13 @@ final class RemoteKeys {
                         int k = QUEUE.removeFirst();
                         toHelper("key " + k, k);
                     }
+                    if (SystemClock.elapsedRealtime() - pendingAt <= PENDING_MS) {
+                        for (int i = 0; i < PENDING.size(); i++) toHelper(PENDING.get(i), -1);
+                    }
                 } else if (!QUEUE.isEmpty() && ctx != null) {
                     pump(ctx);
                 }
+                PENDING.clear();
             }
         });
     }

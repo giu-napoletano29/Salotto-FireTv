@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
@@ -68,8 +69,8 @@ import java.util.regex.Pattern;
  *    token is a session that ends after the time set in Settings;
  *  - wrong codes are counted per address and overall, and answered with 429 for a while;
  *  - a request whose Host or Origin is not this TV's own address is refused;
- *  - the phone can press only the keys of RemoteKeys and change only what RemoteSettings
- *    lists; it cannot run commands.
+ *  - the phone can press only the keys of RemoteKeys, type text, open an http(s) address
+ *    (RemoteLink) and change only what RemoteSettings lists; it cannot run commands.
  * It is plain HTTP: someone who can read the Wi-Fi traffic can read the code while it is
  * valid, and a token. See SECURITY.md.
  *
@@ -425,6 +426,13 @@ final class RemoteServer {
             if (post && "/api/key".equals(r.path)) {
                 return key(new JSONObject(r.body).optString("key", ""));
             }
+            if (post && "/api/text".equals(r.path)) {
+                JSONObject o = new JSONObject(r.body);
+                return typeText(o.optString("text", ""), o.optInt("del", 0));
+            }
+            if (post && "/api/link".equals(r.path)) {
+                return link(new JSONObject(r.body).optString("url", ""));
+            }
             if (get && "/api/settings".equals(r.path)) return settings();
             if (post && "/api/setting".equals(r.path)) {
                 JSONObject o = new JSONObject(r.body);
@@ -641,6 +649,42 @@ final class RemoteServer {
         if (res == null) return error(503, "busy");
         if (RemoteKeys.UNKNOWN.equals(res)) return error(400, "key");
         return json(200, new JSONObject().put("ok", RemoteKeys.OK.equals(res)).put("result", res));
+    }
+
+    private static Resp typeText(final String text, final int del) throws Exception {
+        String res = onMain(new Callable<String>() {
+            public String call() { return RemoteKeys.type(app, text, del); }
+        });
+        if (res == null) return error(503, "busy");
+        if (RemoteKeys.UNKNOWN.equals(res)) return error(400, "text");
+        return json(200, new JSONObject().put("ok", RemoteKeys.OK.equals(res)).put("result", res));
+    }
+
+    /** Opens an http(s) address on the TV and says whether the system found a way to open it. */
+    private static Resp link(String raw) throws Exception {
+        final String url = RemoteLink.clean(raw);
+        if (url == null) return error(400, "url");
+        final CountDownLatch done = new CountDownLatch(1);
+        final boolean[] result = new boolean[1];
+        Boolean started = onMain(new Callable<Boolean>() {
+            public Boolean call() {
+                if (!AdbBridge.canRun(app)) return Boolean.FALSE;
+                RemoteLink.open(app, url, new AdbBridge.Callback() {
+                    public void onDone(boolean ok, String out) {
+                        result[0] = ok;
+                        done.countDown();
+                    }
+                });
+                return Boolean.TRUE;
+            }
+        });
+        if (started == null) return error(503, "busy");
+        if (!started.booleanValue()) {
+            return json(200, new JSONObject().put("ok", false).put("result", RemoteKeys.NEEDS_LINK));
+        }
+        boolean in = done.await(8, TimeUnit.SECONDS);
+        return json(200, new JSONObject().put("ok", in && result[0])
+                .put("result", in ? (result[0] ? RemoteKeys.OK : "not_opened") : "timeout"));
     }
 
     private static Resp settings() throws Exception {

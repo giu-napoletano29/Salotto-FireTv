@@ -17,6 +17,7 @@ import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -49,8 +50,37 @@ final class SearchPanel {
     static View build(final Context c, final SettingsPanel.Host host) {
         final SearchIndex index = new SearchIndex(c);
         final StringBuilder typed = new StringBuilder();
+        final Runnable[] refreshRef = new Runnable[1];
 
-        FrameLayout root = new FrameLayout(c);
+        // A keyboard that is not the on-screen one (the phone's Send tab, a USB keyboard) types
+        // here too: letters, digits, Space and Delete. Everything else, the arrows and OK
+        // included, goes on to whatever has the focus.
+        FrameLayout root = new FrameLayout(c) {
+            @Override public boolean dispatchKeyEvent(KeyEvent e) {
+                if (e.getAction() == KeyEvent.ACTION_DOWN && refreshRef[0] != null) {
+                    int code = e.getKeyCode();
+                    int ch = e.getUnicodeChar();
+                    boolean typedKey = true;
+                    if (code == KeyEvent.KEYCODE_DEL) {
+                        if (typed.length() > 0) typed.setLength(typed.length() - 1);
+                    } else if (code == KeyEvent.KEYCODE_SPACE) {
+                        if (typed.length() > 0 && typed.charAt(typed.length() - 1) != ' ') typed.append(' ');
+                    } else if (e.isPrintingKey() && ch > 0 && Character.isLetterOrDigit(ch)) {
+                        typed.append(Character.toLowerCase((char) ch));
+                    } else {
+                        typedKey = false;
+                    }
+                    if (typedKey) {
+                        refreshRef[0].run();
+                        return true;
+                    }
+                } else if (e.getAction() == KeyEvent.ACTION_UP && (e.getKeyCode() == KeyEvent.KEYCODE_SPACE
+                        || e.getKeyCode() == KeyEvent.KEYCODE_DEL)) {
+                    return true;   // the press was taken on the way down
+                }
+                return super.dispatchKeyEvent(e);
+            }
+        };
         root.setClickable(true);
         root.setFocusable(false);
         root.setBackground(ChannelsPanel.pageBackground(c));
@@ -126,6 +156,8 @@ final class SearchPanel {
                 }
             }
         };
+
+        refreshRef[0] = refresh;
 
         // ---- the keys
         int key = AppModel.dp(c, KEY_DP), gap = AppModel.dp(c, GAP_DP);

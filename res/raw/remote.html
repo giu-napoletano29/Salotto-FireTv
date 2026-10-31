@@ -15,7 +15,9 @@
   h2 { font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--mute);
        margin: 26px 0 8px; font-weight: 600; }
   .sub { color: var(--mute); margin: 0 0 18px; font-size: 15px; }
-  input[type=text], input[type=search], select { width: 100%; padding: 14px 16px; border-radius: 12px;
+  .clear { width: 100%; margin-top: 10px; padding: 14px 0; border: 0; border-radius: 12px; background: var(--card); }
+  .clear:active { background: var(--card2); }
+  input[type=text], input[type=search], input[type=url], select { width: 100%; padding: 14px 16px; border-radius: 12px;
          border: 1px solid var(--line); background: var(--card); color: inherit; font: inherit; }
   input:focus, select:focus { outline: 2px solid var(--accent); border-color: transparent; }
   button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; }
@@ -78,6 +80,16 @@
       <div class="pad" id="pad"></div>
       <p class="hint" id="remoteHint"></p>
     </div>
+    <div id="tab-send" hidden>
+      <h2 id="typeH"></h2>
+      <input id="typed" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+      <button class="clear" id="typeClear"></button>
+      <p class="hint" id="typeHint"></p>
+      <h2 id="linkH"></h2>
+      <input id="url" type="url" inputmode="url" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+      <button class="go" id="urlGo"></button>
+      <p class="hint" id="linkHint"></p>
+    </div>
     <div id="tab-search" hidden>
       <input id="q" type="search" autocomplete="off" autocapitalize="none" spellcheck="false">
       <ul id="list"></ul>
@@ -91,6 +103,7 @@
 </main>
 <nav id="nav" hidden>
   <button data-tab="remote" class="on" id="nRemote"></button>
+  <button data-tab="send" id="nSend"></button>
   <button data-tab="search" id="nSearch"></button>
   <button data-tab="settings" id="nSettings"></button>
 </nav>
@@ -103,7 +116,12 @@
     pairText: 'Per collegare questo telefono inquadra il codice QR che compare sulla TV, oppure scrivi qui le cifre.',
     pairGo: 'Collega', pairBad: 'Codice sbagliato o scaduto.', pairWait: 'Troppi tentativi. Riprova tra un minuto.',
     expired: 'La sessione è finita. Inquadra di nuovo il codice QR sulla TV.', net: 'La TV non risponde.',
-    nRemote: 'Telecomando', nSearch: 'Cerca', nSettings: 'Personalizza',
+    nRemote: 'Telecomando', nSend: 'Invia', nSearch: 'Cerca', nSettings: 'Personalizza',
+    typeH: 'Scrivi sulla TV', typePh: 'Scrivi qui', clear: 'Svuota',
+    typeHint: 'Scegli un campo di testo sulla TV, poi scrivi: le lettere arrivano subito. Le lettere accentate arrivano senza accento. Per cercare o confermare usa OK nel telecomando.',
+    linkH: 'Apri un link sulla TV', linkPh: 'Incolla un indirizzo web', linkGo: 'Apri sulla TV',
+    linkHint: 'Un link di YouTube si apre nell’app di YouTube, gli altri nel browser.',
+    linkOk: 'Aperto sulla TV', linkFail: 'La TV non ha potuto aprirlo', linkBad: 'Non sembra un indirizzo web',
     q: 'Cerca app e canali', none: 'Nessun risultato', opened: 'Aperto sulla TV', fail: 'Non si apre',
     needLink: 'Per i tasti serve il collegamento di debug (Personalizzazione, Configurazione).',
     out: 'Esci da questo telefono', until: 'Sessione fino al ', never: 'La sessione dura finché non esci.',
@@ -113,7 +131,12 @@
     pairText: 'To pair this phone, scan the QR code on the TV, or type the digits here.',
     pairGo: 'Pair', pairBad: 'Wrong or expired code.', pairWait: 'Too many tries. Try again in a minute.',
     expired: 'The session has ended. Scan the QR code on the TV again.', net: 'The TV does not answer.',
-    nRemote: 'Remote', nSearch: 'Search', nSettings: 'Settings',
+    nRemote: 'Remote', nSend: 'Send', nSearch: 'Search', nSettings: 'Settings',
+    typeH: 'Type on the TV', typePh: 'Type here', clear: 'Clear',
+    typeHint: 'Pick a text field on the TV, then type: the letters arrive as you go. Accented letters arrive without the accent. To search or confirm, use OK on the remote.',
+    linkH: 'Open a link on the TV', linkPh: 'Paste a web address', linkGo: 'Open on the TV',
+    linkHint: 'A YouTube link opens in the YouTube app, any other in the browser.',
+    linkOk: 'Opened on the TV', linkFail: 'The TV could not open it', linkBad: 'That does not look like a web address',
     q: 'Search apps and channels', none: 'Nothing found', opened: 'Opened on the TV', fail: 'Could not open',
     needLink: 'The buttons need the debugging link (Salotto Settings, Setup).',
     out: 'Sign out of this phone', until: 'Session until ', never: 'The session lasts until you sign out.',
@@ -152,6 +175,15 @@
   $('out').textContent = TXT.out;
   $('remoteHint').textContent = '';
   $('nRemote').textContent = TXT.nRemote;
+  $('nSend').textContent = TXT.nSend;
+  $('typeH').textContent = TXT.typeH;
+  $('typed').placeholder = TXT.typePh;
+  $('typeClear').textContent = TXT.clear;
+  $('typeHint').textContent = TXT.typeHint;
+  $('linkH').textContent = TXT.linkH;
+  $('url').placeholder = TXT.linkPh;
+  $('urlGo').textContent = TXT.linkGo;
+  $('linkHint').textContent = TXT.linkHint;
   $('nSearch').textContent = TXT.nSearch;
   $('nSettings').textContent = TXT.nSettings;
 
@@ -222,14 +254,14 @@
   }
   function openTab(name) {
     tab = name;
-    ['remote', 'search', 'settings'].forEach(function (t) {
+    ['remote', 'send', 'search', 'settings'].forEach(function (t) {
       $('tab-' + t).hidden = t !== name;
     });
     for (var i = 0; i < nav.length; i++) {
       nav[i].className = nav[i].getAttribute('data-tab') === name ? 'on' : '';
     }
     stopWarm();
-    if (name === 'remote') startWarm();
+    if (name === 'remote' || name === 'send') startWarm();
     if (name === 'search') { search(); $('q').focus(); }
     if (name === 'settings') loadSettings();
   }
@@ -286,6 +318,58 @@
     warm = setInterval(ping, 20000);
   }
   function stopWarm() { clearInterval(warm); warm = null; clearTimeout(hold); }
+
+  // ---- typing and links
+  // What the TV's field holds, as far as this page knows: `sent`. Each change of the box is sent
+  // as the difference (how many characters to delete, then the new ones), one request at a time
+  // so they arrive in order.
+  var sent = '', typing = false, dirty = false;
+  function flushType() {
+    if (typing) { dirty = true; return; }
+    var now = $('typed').value, a = Array.from(sent), b = Array.from(now), p = 0;
+    while (p < a.length && p < b.length && a[p] === b[p]) p++;
+    var del = a.length - p, add = b.slice(p);
+    if (!del && !add.length) return;
+    typing = true;
+    var step = function () {
+      var chunk = add.splice(0, 100).join('');
+      return call('/api/text', { text: chunk, del: del }).then(function (j) {
+        del = 0;
+        if (!j.ok) throw { link: true };
+        if (add.length) return step();
+      });
+    };
+    step().then(function () {
+      sent = now;
+      typing = false;
+      if (dirty) { dirty = false; flushType(); }
+    }).catch(function (e) {
+      typing = false;
+      dirty = false;
+      if (e.status === 401) return;
+      toast(e.link ? TXT.needLink : TXT.net);
+    });
+  }
+  $('typed').oninput = flushType;
+  $('typeClear').onclick = function () {
+    $('typed').value = '';
+    flushType();
+    $('typed').focus();
+  };
+  function openLink() {
+    var u = $('url').value.trim();
+    if (!u) return;
+    if (!/^https?:\/\//i.test(u)) {
+      if (/^[^\s\/:?#]+\.[^\s\/:?#]+([\/?#]\S*)?$/.test(u)) u = 'https://' + u;
+      else { toast(TXT.linkBad); return; }
+    }
+    call('/api/link', { url: u }).then(function (j) {
+      if (j.ok) { toast(TXT.linkOk); $('url').value = ''; }
+      else toast(j.result === 'needs_link' ? TXT.needLink : TXT.linkFail);
+    }).catch(function (e) { if (e.status !== 401) toast(TXT.net); });
+  }
+  $('urlGo').onclick = openLink;
+  $('url').onkeydown = function (e) { if (e.key === 'Enter') openLink(); };
 
   // ---- search
   var ctl = null;

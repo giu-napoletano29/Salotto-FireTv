@@ -17,6 +17,7 @@ Plus and Max run Fire OS.
   the right app on that channel.
 - **Search.** Apps and channels by name, from a keyboard of letters on the TV.
 - **A phone as a remote.** Scan a QR code on the TV and the phone gets the remote's buttons,
+  a keyboard that types into any text field on the TV, a way to open a web address on the TV,
   the search and forms for the main settings. Off until you turn it on; the code changes every
   minute and works once.
 - **Your remote's buttons.** The coloured buttons, Exit or any button the TV passes on can

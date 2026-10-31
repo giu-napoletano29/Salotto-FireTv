@@ -27,6 +27,8 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.net.URLDecoder;
+import java.text.Normalizer;
 
 /**
  * A small process that presses the remote's keys for the phone remote, much faster than
@@ -34,9 +36,10 @@ import java.net.SocketTimeoutException;
  *
  * It is started once over the on-device ADB link, so it runs with the shell's privileges
  * (the same as `input`), as `app_process` with this APK on its class path. It listens on
- * 127.0.0.1 only, takes lines of "&lt;secret&gt; key &lt;code&gt;", "&lt;secret&gt; ping" and
- * "&lt;secret&gt; quit", presses only the codes in {@link #CODES}, and exits by itself after a
- * while without a line. The secret is made fresh each time it is started and is known only to
+ * 127.0.0.1 only, takes lines of "&lt;secret&gt; key &lt;code&gt;", "&lt;secret&gt; del &lt;n&gt;",
+ * "&lt;secret&gt; type &lt;url-encoded text&gt;", "&lt;secret&gt; ping" and "&lt;secret&gt; quit", presses
+ * only the codes in {@link #CODES} (text goes through the key map, at most {@link #TEXT_MAX}
+ * characters a line), and exits by itself after a while without a line. The secret is made fresh each time it is started and is known only to
  * the app. It does not run in the app's own process and must not touch Android classes that
  * need a Looper or a Context.
  */
@@ -48,6 +51,9 @@ public final class KeyDaemon {
             85, 89, 90, 24, 25, 164 };
 
     private static final long IDLE_EXIT_MS = 75000L;
+    /** Longest line it reads, and the most characters one "type" or "del" line may carry. */
+    private static final int LINE_MAX = 1500;
+    static final int TEXT_MAX = 120;
 
     private static volatile long lastLine = SystemClock.uptimeMillis();
     private static Object inputManager;
@@ -97,7 +103,7 @@ public final class KeyDaemon {
             BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream(), "US-ASCII"), 256);
             String line;
             while ((line = in.readLine()) != null) {
-                if (line.length() > 40) break;
+                if (line.length() > LINE_MAX) break;
                 String[] w = line.split(" ");
                 if (w.length < 2 || !secret.equals(w[0])) break;
                 lastLine = SystemClock.uptimeMillis();
@@ -106,6 +112,11 @@ public final class KeyDaemon {
                 } else if ("key".equals(w[1]) && w.length == 3) {
                     int code = Integer.parseInt(w[2]);
                     if (allowed(code)) press(code);
+                } else if ("del".equals(w[1]) && w.length == 3) {
+                    int n = Math.min(Integer.parseInt(w[2]), TEXT_MAX);
+                    for (int i = 0; i < n; i++) press(KeyEvent.KEYCODE_DEL);
+                } else if ("type".equals(w[1]) && w.length == 3) {
+                    type(URLDecoder.decode(w[2], "UTF-8"));
                 }
             }
         } catch (Throwable t) {
@@ -126,6 +137,35 @@ public final class KeyDaemon {
                 KeyCharacterMap.VIRTUAL_KEYBOARD, 0, 0, InputDevice.SOURCE_KEYBOARD));
         send(new KeyEvent(now, now, KeyEvent.ACTION_UP, code, 0, 0,
                 KeyCharacterMap.VIRTUAL_KEYBOARD, 0, 0, InputDevice.SOURCE_KEYBOARD));
+    }
+
+    /**
+     * Types the text one character at a time through the virtual keyboard's key map, the way
+     * `input text` does, but without starting a new process. That map has no accented letters:
+     * each such letter is typed as its plain base ("e" for an e with an accent), and anything
+     * with no base (the euro sign, an emoji) is left out.
+     */
+    private static void type(String text) throws Exception {
+        if (text.length() > TEXT_MAX) text = text.substring(0, TEXT_MAX);
+        KeyCharacterMap map = KeyCharacterMap.load(KeyCharacterMap.VIRTUAL_KEYBOARD);
+        for (int i = 0; i < text.length(); ) {
+            int cp = text.codePointAt(i);
+            i += Character.charCount(cp);
+            KeyEvent[] ev = map.getEvents(Character.toChars(cp));
+            if (ev == null) {
+                String base = Normalizer.normalize(new String(Character.toChars(cp)), Normalizer.Form.NFD)
+                        .replaceAll("[^\\p{ASCII}]", "");
+                if (base.length() == 0) continue;
+                ev = map.getEvents(base.toCharArray());
+                if (ev == null) continue;
+            }
+            long now = SystemClock.uptimeMillis();
+            for (int k = 0; k < ev.length; k++) {
+                send(new KeyEvent(now, now, ev[k].getAction(), ev[k].getKeyCode(), 0,
+                        ev[k].getMetaState(), KeyCharacterMap.VIRTUAL_KEYBOARD, 0, 0,
+                        InputDevice.SOURCE_KEYBOARD));
+            }
+        }
     }
 
     private static void send(KeyEvent e) throws Exception {
