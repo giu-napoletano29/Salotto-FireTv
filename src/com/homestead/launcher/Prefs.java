@@ -115,10 +115,18 @@ public final class Prefs {
     public static int sort(Context c) { return sp(c).getInt(K_SORT, SORT_LAST_USED); }
     public static void setSort(Context c, int v) { sp(c).edit().putInt(K_SORT, v).apply(); }
 
+    /**
+     * The grid's columns, for the dock and the square tiles under it (as many of those as
+     * columns). Below 8 the tiles grow until the first row of squares no longer fits under the
+     * dock on a 1080p screen, so the choice starts there; at 10 a dock banner is still about
+     * 70 dp wide.
+     */
+    public static final int COLUMNS_MIN = 8, COLUMNS_MAX = 10, COLUMNS_DEFAULT = 9;
+
     public static int columns(Context c) {
-        int n = sp(c).getInt(K_COLUMNS, 6);
-        if (n < 4) n = 4;
-        if (n > 8) n = 8;
+        int n = sp(c).getInt(K_COLUMNS, COLUMNS_DEFAULT);
+        if (n < COLUMNS_MIN) n = COLUMNS_MIN;
+        if (n > COLUMNS_MAX) n = COLUMNS_MAX;
         return n;
     }
     public static void setColumns(Context c, int v) { sp(c).edit().putInt(K_COLUMNS, v).apply(); }

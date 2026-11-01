@@ -83,8 +83,12 @@ public class HomeGrid implements SettingsPanel.Host {
     private static final int GAP_DP = 16;
     private static final int CORNER_DP = 6;
     /** Space between the square tiles under the dock; tighter than the dock's own gap. */
-    private static final int GRID_GAP_DP = 8;
+    private static final int GRID_GAP_DP = 12;
+    /** The corners of the square tiles under the dock, as a share of the side: Tizen's rounded squares. */
+    private static final float SQUARE_CORNER = 0.24f;
     private static final int GRID_ROW_GAP_DP = 24;
+    /** Kept free under the last row of square tiles. */
+    private static final int GRID_BOTTOM_DP = 24;
     /** Room kept under the focused tile when the page scrolls to it. */
     private static final int BOTTOM_ROOM_DP = 32;
     /** Every tile is at full strength; focus is the white rim alone. */
@@ -184,6 +188,10 @@ public class HomeGrid implements SettingsPanel.Host {
     private final Map<String, View> cellsByKey = new HashMap<String, View>();
     /** buildCard() cells and whether each is an input/Live TV tile, for repainting their glass. */
     private final Map<View, Boolean> cardCells = new HashMap<View, Boolean>();
+    /** The corner radius of each cell, where it is not the usual one (the square tiles). */
+    private final Map<View, Integer> corners = new HashMap<View, Integer>();
+    /** While the square tiles are built: their corner radius in pixels; 0 the rest of the time. */
+    private int gridCorner;
     /** Keys of the tiles currently in the dock, so focusing one can scroll to the top. */
     private final Set<String> dockKeys = new HashSet<String>();
     /** The horizontally scrolling rows (the dock, if present), in build order. */
@@ -1806,6 +1814,7 @@ public class HomeGrid implements SettingsPanel.Host {
         column.removeAllViews();
         cellsByKey.clear();
         cardCells.clear();
+        corners.clear();
         rows.clear();
         dockKeys.clear();
         dockTitleView = null;
@@ -1829,6 +1838,7 @@ public class HomeGrid implements SettingsPanel.Host {
         column.removeAllViews();
         cellsByKey.clear();
         cardCells.clear();
+        corners.clear();
         rows.clear();
         dockKeys.clear();
         dockTitleView = null;
@@ -2297,13 +2307,15 @@ public class HomeGrid implements SettingsPanel.Host {
      * squarer shelf under their own hero row.
      */
     private void addTileGrid(List<AppModel.Item> items) {
-        // Two columns more than the setting, in the same row width: squares well under the
-        // dock's tiles, still filling the row edge to edge, and low enough that the first
-        // row clears the bottom of the screen while the dock is at the top.
+        // As many as the setting says, in the dock's row width: squares that fill the row edge to
+        // edge, a step under the dock's wide tiles, and low enough that the first row clears
+        // the bottom of the screen while the dock is at the top (from 9 on, on 1080p).
         int base = AppModel.columns(ctx);
-        int cols = base + 2;
+        int gap = dp(GRID_GAP_DP);
         int rowW = AppModel.cellW(ctx) * base + dp(GAP_DP) * (base - 1);
-        int w = (rowW - dp(GRID_GAP_DP) * (cols - 1)) / cols;
+        int cols = base;
+        int w = (rowW - gap * (cols - 1)) / cols;
+        gridCorner = Math.round(w * SQUARE_CORNER);
         LinearLayout row = null;
         for (int i = 0; i < items.size(); i++) {
             if (i % cols == 0) {
@@ -2328,7 +2340,15 @@ public class HomeGrid implements SettingsPanel.Host {
             if (i % cols != 0) lp.leftMargin = dp(GRID_GAP_DP);
             row.addView(cell, lp);
         }
+        // Room under the last row, so the tiles never touch the screen's edge.
+        if (row != null) {
+            ((LinearLayout.LayoutParams) row.getLayoutParams()).bottomMargin = dp(GRID_BOTTOM_DP);
+        }
+        gridCorner = 0;
     }
+
+    /** The corner radius for a cell being built: the square tiles' while they are, else the usual. */
+    private int corner() { return gridCorner > 0 ? gridCorner : dp(CORNER_DP); }
 
     // ---------------------------------------------------------------- cells
 
@@ -2339,7 +2359,8 @@ public class HomeGrid implements SettingsPanel.Host {
         cell.setClipChildren(false);
         // A rounded-rect outline so a focused tile's elevation shadow is shaped like the
         // card, not the square it would otherwise fall back to.
-        final int radius = dp(CORNER_DP);
+        final int radius = corner();
+        if (gridCorner > 0) corners.put(cell, radius);
         cell.setOutlineProvider(new ViewOutlineProvider() {
             public void getOutline(View v, Outline outline) {
                 outline.setRoundRect(0, 0, v.getWidth(), v.getHeight(), radius);
@@ -2404,9 +2425,10 @@ public class HomeGrid implements SettingsPanel.Host {
      * look. Drawn as the cell's foreground so it sits above the banner, with the same
      * corner radius as the tile so it never shows sharp corners against rounded art.
      */
-    private Drawable focusRim() {
+    private Drawable focusRim(View cell) {
         GradientDrawable d = new GradientDrawable();
-        d.setCornerRadius(dp(CORNER_DP));
+        Integer r = corners.get(cell);
+        d.setCornerRadius(r != null ? r : dp(CORNER_DP));
         d.setStroke(dp(3), 0xFFFFFFFF);
         d.setColor(Color.TRANSPARENT);
         return d;
@@ -2428,7 +2450,7 @@ public class HomeGrid implements SettingsPanel.Host {
         FrameLayout f = (FrameLayout) v;
         f.animate().cancel();
         // The white rim marks the focused tile; the others have no border at all.
-        f.setForeground(focused ? focusRim() : null);
+        f.setForeground(focused ? focusRim(f) : null);
         float scale = focused ? FOCUS_SCALE : 1f;
         float z = focused ? dp(FOCUS_LIFT_DP) : 0f;
         float alpha = focused ? 1f : UNFOCUSED_ALPHA;
@@ -2543,7 +2565,7 @@ public class HomeGrid implements SettingsPanel.Host {
         if (it.type != AppModel.TYPE_APP) return buildGlyphSquare(it);
         FrameLayout cell = newCell(it);
         GradientDrawable card = new GradientDrawable();
-        card.setCornerRadius(dp(CORNER_DP));
+        card.setCornerRadius(corner());
         int iw = it.icon.getWidth(), ih = it.icon.getHeight();
         boolean squareIcon = Math.abs(iw - ih) <= Math.max(2, Math.max(iw, ih) / 20);
         int plate = squareCardColor(it);
@@ -2579,7 +2601,7 @@ public class HomeGrid implements SettingsPanel.Host {
     private View buildGlyphSquare(AppModel.Item it) {
         FrameLayout cell = newCell(it);
         GradientDrawable card = new GradientDrawable();
-        card.setCornerRadius(dp(CORNER_DP));
+        card.setCornerRadius(corner());
         card.setColor(cardColor(false));
         cell.setBackground(card);
         cardCells.put(cell, Boolean.FALSE);
@@ -2658,7 +2680,7 @@ public class HomeGrid implements SettingsPanel.Host {
     private View buildCard(AppModel.Item it) {
         FrameLayout cell = newCell(it);
         GradientDrawable card = new GradientDrawable();
-        card.setCornerRadius(dp(CORNER_DP));
+        card.setCornerRadius(corner());
         boolean textTile = it.type == AppModel.TYPE_INPUT || AppModel.isLive(it.type);
         card.setColor(cardColor(textTile));
         cell.setBackground(card);

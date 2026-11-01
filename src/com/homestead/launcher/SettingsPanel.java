@@ -158,7 +158,7 @@ public final class SettingsPanel {
         cols.cell.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 int n = Prefs.columns(c) + 1;
-                if (n > 8) n = 4;
+                if (n > Prefs.COLUMNS_MAX) n = Prefs.COLUMNS_MIN;
                 Prefs.setColumns(c, n);
                 cols.setValue(String.valueOf(n));
                 AppModel.invalidateMetrics();

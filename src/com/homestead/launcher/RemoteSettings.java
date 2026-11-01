@@ -55,7 +55,7 @@ final class RemoteSettings {
         look.put(choice("background", "Background", bgNow, bgs, null));
 
         JSONArray cols = new JSONArray();
-        for (int n = 4; n <= 8; n++) cols.put(opt(String.valueOf(n), String.valueOf(n)));
+        for (int n = Prefs.COLUMNS_MIN; n <= Prefs.COLUMNS_MAX; n++) cols.put(opt(String.valueOf(n), String.valueOf(n)));
         look.put(choice("columns", "Grid columns", String.valueOf(Prefs.columns(c)), cols, null));
 
         JSONArray dock = new JSONArray();
@@ -167,7 +167,7 @@ final class RemoteSettings {
                 Backgrounds.choose(c, value);
             } else if ("columns".equals(id)) {
                 int n = Integer.parseInt(value);
-                if (n < 4 || n > 8) return BAD;
+                if (n < Prefs.COLUMNS_MIN || n > Prefs.COLUMNS_MAX) return BAD;
                 Prefs.setColumns(c, n);
                 AppModel.invalidateMetrics();
             } else if ("dock".equals(id)) {

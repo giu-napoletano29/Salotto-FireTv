@@ -3,6 +3,18 @@
 This fork keeps the original's version numbers and adds a fourth digit or a new minor. The
 original's history (up to 1.6.14) is in the git log below the fork's first commit.
 
+## 1.8.5
+
+A home screen closer to Tizen's.
+
+- The side bar is in two groups, as on Tizen: Search, Apps and the quick settings from the
+  top, and from the bottom a Phone control icon, System settings and Settings. A switch in
+  System settings (In the side bar) takes the phone icon off; it is on by default.
+- The square tiles under the dock are bigger and rounded like Tizen's icon shelf, and as many
+  to a row as the columns setting says.
+- Columns now go from 8 to 10 (9 by default). Below 8 the first row of squares no longer fits
+  under the dock, so anyone who had 4 to 7 gets 8 after updating.
+
 ## 1.8.4
 
 Type and send links from the phone.
