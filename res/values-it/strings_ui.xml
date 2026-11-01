@@ -91,6 +91,8 @@
   <string name="sys_all_help">Il menu completo delle impostazioni di Amazon.</string>
   <string name="sys_all_help_incl">Il menu completo delle impostazioni di Amazon, comprese %1$s.</string>
   <string name="sys_all_help_off"> Con il launcher di Amazon spento, viene riacceso per un momento, su una TV dove è possibile.</string>
+  <string name="sys_rail_phone">Icona del controllo da telefono</string>
+  <string name="sys_rail_phone_help">Mostra un\'icona del telefono in fondo alla barra laterale, una scorciatoia alla pagina Controllo da telefono. C\'è sia con il controllo acceso sia spento.</string>
   <string name="sys_quick_help">Le schermate scelte diventano le prime voci della barra laterale, sopra Appstore, Impostazioni di sistema e Personalizzazione, che ci sono sempre.</string>
   <string name="sys_choose_help">Quali schermate hanno una voce. La barra laterale mostra le prime quattro.</string>
   <string name="sys_launcher_on_help">Disattivalo in Debloat per far aprire Home direttamente a Salotto e liberare la memoria che usa in background.</string>

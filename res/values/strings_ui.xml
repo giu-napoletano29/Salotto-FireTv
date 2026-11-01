@@ -91,6 +91,8 @@
   <string name="sys_all_help">Amazon\'s full settings menu.</string>
   <string name="sys_all_help_incl">Amazon\'s full settings menu, including %1$s.</string>
   <string name="sys_all_help_off"> With Amazon\'s launcher off it is switched on for a moment first - on a TV where that is possible.</string>
+  <string name="sys_rail_phone">Phone control icon</string>
+  <string name="sys_rail_phone_help">Shows a phone icon at the bottom of the side bar, a shortcut to the Phone control page. It is there whether the control is on or off.</string>
   <string name="sys_quick_help">The screens you choose become the first entries of the side bar, above the Appstore, System settings and Settings, which are always there.</string>
   <string name="sys_choose_help">Which screens get an entry. The side bar shows the first four.</string>
   <string name="sys_launcher_on_help">Switch it off in Debloat to make Home open Salotto directly, and to free up the memory it uses in the background.</string>

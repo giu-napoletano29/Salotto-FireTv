@@ -105,6 +105,16 @@ final class ShortcutIcons {
                         cx + dx * s * 0.40f, cy + dy * s * 0.40f, line);
             }
             c.drawCircle(cx, cy, s * 0.28f, line);
+        } else if ("phone".equals(id)) {
+            // A phone with a few waves coming off it: the one that pairs with the TV.
+            c.drawRoundRect(new RectF(s * 0.16f, s * 0.12f, s * 0.52f, s * 0.88f),
+                    s * 0.08f, s * 0.08f, line);
+            c.drawLine(s * 0.28f, s * 0.76f, s * 0.40f, s * 0.76f, line);
+            float[] r = { 0.12f, 0.24f };
+            for (int i = 0; i < r.length; i++) {
+                c.drawArc(new RectF(s * 0.52f - s * r[i], s * 0.5f - s * r[i],
+                        s * 0.52f + s * r[i], s * 0.5f + s * r[i]), -45f, 90f, false, line);
+            }
         } else if ("search".equals(id)) {
             c.drawCircle(s * 0.44f, s * 0.44f, s * 0.26f, line);
             c.drawLine(s * 0.63f, s * 0.63f, s * 0.86f, s * 0.86f, line);

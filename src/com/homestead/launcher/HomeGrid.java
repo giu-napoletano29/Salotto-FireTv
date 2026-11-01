@@ -525,6 +525,7 @@ public class HomeGrid implements SettingsPanel.Host {
             }
         }
         if (hasInputs()) key.append(",inputs");
+        if (Prefs.railPhone(ctx)) key.append(",phone");
         // Same entries as before: leave the rail, so one with focus keeps it through a reload.
         if (key.toString().equals(pillsKey)) return;
         pillsKey = key.toString();
@@ -672,8 +673,10 @@ public class HomeGrid implements SettingsPanel.Host {
     private void buildRail() {
         rail = new LinearLayout(ctx);
         rail.setOrientation(LinearLayout.VERTICAL);
-        rail.setGravity(Gravity.CENTER_VERTICAL);
-        rail.setPadding(0, dp(20), 0, dp(20));
+        // Two groups, as on Tizen: the way in to things (search, apps, quick settings) from the
+        // top, the settings pages from the bottom, with a gap that takes the rest.
+        rail.setGravity(Gravity.TOP);
+        rail.setPadding(0, dp(36), 0, dp(36));
         railBg = new RailGlass(Math.max(2f, dp(1)), RAIL_REST);
         rail.setBackground(railBg);
 
@@ -735,6 +738,21 @@ public class HomeGrid implements SettingsPanel.Host {
                         openAppstore();
                     }
                 });
+        // The gap between the two groups. It is not focusable, so the arrows step over it.
+        rail.addView(new View(ctx), new LinearLayout.LayoutParams(1, 0, 1f));
+        // Shown whether the control is on or off (that page is where it is switched on); the
+        // System settings page can take the icon off the rail.
+        if (Prefs.railPhone(ctx)) {
+            addRailItem(ShortcutIcons.render("phone", dp(RAIL_ICON_DP)),
+                    ctx.getString(R.string.remote_title), new Runnable() {
+                        public void run() {
+                            logOpen("Phone control (rail)");
+                            showPanel(RemotePanel.build(ctx, panelHost, new Runnable() {
+                                public void run() { }
+                            }));
+                        }
+                    });
+        }
         addRailItem(ShortcutIcons.render("settings", dp(RAIL_ICON_DP)),
                 ctx.getString(R.string.sys_title), new Runnable() {
                     public void run() {
@@ -755,8 +773,10 @@ public class HomeGrid implements SettingsPanel.Host {
         for (int i = 0; i < railItems.size(); i++) {
             View v = railItems.get(i);
             v.setNextFocusLeftId(v.getId());
-            if (i == 0) v.setNextFocusUpId(v.getId());
-            if (i == railItems.size() - 1) v.setNextFocusDownId(v.getId());
+            // Each item names its neighbours: with the gap between the two groups the focus
+            // search would find a tile of the grid nearer than the next item of the rail.
+            v.setNextFocusUpId(i == 0 ? v.getId() : railItems.get(i - 1).getId());
+            v.setNextFocusDownId(i == railItems.size() - 1 ? v.getId() : railItems.get(i + 1).getId());
         }
         // Rebuilt while open (a choice made from a page opened on the rail): labels show.
         if (railOpen) {

@@ -44,6 +44,7 @@ public final class Prefs {
     private static final String K_RESTORE_WATCH = "restore_watch";
     private static final String K_IDLE = "idle_minutes";
     private static final String K_SHORTCUTS_PLACE = "shortcuts_place";
+    private static final String K_RAIL_PHONE = "rail_phone";
     private static final String K_SHORTCUTS = "shortcuts";
     private static final String K_DISABLED = "disabled_by_us";
     private static final String K_REFUSED = "refused_by_fire_os";
@@ -251,6 +252,10 @@ public final class Prefs {
     public static void setShortcutsPlace(Context c, int v) {
         sp(c).edit().putInt(K_SHORTCUTS_PLACE, v).apply();
     }
+
+    /** The phone-control icon at the bottom of the side rail; on until switched off. */
+    public static boolean railPhone(Context c) { return sp(c).getBoolean(K_RAIL_PHONE, true); }
+    public static void setRailPhone(Context c, boolean v) { sp(c).edit().putBoolean(K_RAIL_PHONE, v).apply(); }
 
     /** Screen ids (SystemSettingsPanel) in the bar; four until chosen. */
     public static Set<String> shortcuts(Context c) {

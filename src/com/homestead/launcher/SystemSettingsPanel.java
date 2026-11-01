@@ -190,6 +190,17 @@ public final class SystemSettingsPanel {
         p.addRow(c.getString(R.string.sys_choose_quick), "", new Runnable() {
             public void run() { host.showPanel(buildChoose(c, host)); }
         }).opens().setHelp(c.getString(R.string.sys_choose_help));
+        final Panel.Row phone = p.addRow(c.getString(R.string.sys_rail_phone),
+                SettingsPanel.onOff(c, Prefs.railPhone(c)), null).asSwitch();
+        phone.cell.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                boolean n = !Prefs.railPhone(c);
+                Prefs.setRailPhone(c, n);
+                phone.setValue(SettingsPanel.onOff(c, n));
+                host.rebuildGrid();
+            }
+        });
+        phone.setHelp(c.getString(R.string.sys_rail_phone_help));
 
         p.addHeader(c.getString(R.string.sys_header_launcher));
         if (AppModel.amazonLauncherOn(c)) {
